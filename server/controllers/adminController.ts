@@ -131,8 +131,10 @@ const updateProducts = async (req: Request, res: Response): Promise<void> => {
             const processedColors = []
             for (let i = 0; i < colors.length; i++) {
                 const color = colors[i]
-                const existingColor = product.colors.find((c) => c.colorName === color.colorName) || product.colors[i] || {}
-
+                const existingColor: any =
+                    product.colors.find((c) => c.colorName === color.colorName) ||
+                    product.colors[i] ||
+                    {}
                 let mainImagePath = existingColor.mainImage || ""
                 if ((req.files as any)?.[`mainImage_${i}`]?.[0]) {
                     const uploadResult = await uploaderToCloudinary((req.files as any)[`mainImage_${i}`][0].path)

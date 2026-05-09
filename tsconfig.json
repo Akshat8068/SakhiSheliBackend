@@ -1,0 +1,22 @@
+{
+    "compilerOptions": {
+        "target": "ES2020",
+        "module": "CommonJS",
+        "moduleResolution": "node",
+        "outDir": "./dist",
+        "rootDir": "./server",
+        "strict": false,
+        "esModuleInterop": true,
+        "allowSyntheticDefaultImports": true,
+        "resolveJsonModule": true,
+        "skipLibCheck": true,
+        "ignoreDeprecations": "6.0",
+    },
+    "include": [
+        "server/**/*"
+    ],
+    "exclude": [
+        "node_modules",
+        "dist"
+    ]
+}

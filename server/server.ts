@@ -1,5 +1,6 @@
 import express from "express"
 import "colors"
+import cors from "cors"
 import connectDB from "./config/dbConfig"
 import dotenv from "dotenv"
 
@@ -21,6 +22,14 @@ const PORT = process.env.PORT || 5000
 
 // connectDB
 connectDB()
+
+// CORS
+app.use(
+    cors({
+        origin: process.env.CLIENT_URL || "http://localhost:5173",
+        credentials: true,
+    })
+)
 
 // Body Parsers
 app.use(express.json({ limit: "100mb" }))

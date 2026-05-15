@@ -25,5 +25,5 @@ router.get("/reviews", protect.forAdmin, adminController.getAllReview)
 // Coupon routes
 router.get("/coupon", protect.forAdmin, adminController.allCoupon)
 router.post("/coupon/add", protect.forAdmin, adminController.createCoupon)
-
+router.get("/coupon/:cid", protect.forAdmin, adminController.getCouponDetails)
 export default router

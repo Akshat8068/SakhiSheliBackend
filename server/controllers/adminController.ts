@@ -284,6 +284,21 @@ const allCoupon = async (req: Request, res: Response): Promise<void> => {
         res.status(200).json(coupons)
     }
 }
+const getCouponDetails = async (req: Request, res: Response): Promise<void> => {
+
+    const couponId = req.params.cid
+
+    const coupon = await Coupon.findById(couponId)
+        .populate("usedBy", "name email")
+        .populate("order")
+
+    if (!coupon) {
+        res.status(404)
+        throw new Error("Coupon not found")
+    }
+
+    res.status(200).json(coupon)
+}
 
 const adminController = {
     getAllUsers,
@@ -297,6 +312,7 @@ const adminController = {
     getAllReview,
     createCoupon,
     allCoupon,
+    getCouponDetails,
 }
 
 export default adminController

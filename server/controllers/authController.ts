@@ -91,7 +91,88 @@ const loginUser = async (req: Request, res: Response): Promise<void> => {
 
     res.status(401).json({ success: false, message: "Invalid credentials" })
 }
+const updateUser = async (req: Request, res: Response): Promise<void> => {
+    const userId = req.user.id
 
-const authController = { loginUser, registerUser }
+    const { name, email, phone, address, password } = req.body
+
+    const user = await User.findById(userId)
+
+    if (!user) {
+        res.status(404).json({
+            success: false,
+            message: "User not found",
+        })
+        return
+    }
+
+    // check email uniqueness
+    if (email && email !== user.email) {
+        const existingEmail = await User.findOne({ email })
+
+        if (existingEmail) {
+            res.status(409).json({
+                success: false,
+                message: "Email already exists",
+            })
+            return
+        }
+
+        user.email = email
+    }
+
+    // check phone uniqueness
+    if (phone && phone !== user.phone) {
+        if (phone.length !== 10) {
+            res.status(400).json({
+                success: false,
+                message: "Invalid phone number",
+            })
+            return
+        }
+
+        const existingPhone = await User.findOne({ phone })
+
+        if (existingPhone) {
+            res.status(409).json({
+                success: false,
+                message: "Phone already exists",
+            })
+            return
+        }
+
+        user.phone = phone
+    }
+
+    // update other fields
+    if (name) user.name = name
+    if (address) user.address = address
+
+    // password update
+    if (password) {
+        const salt = bcrypt.genSaltSync(10)
+        user.password = bcrypt.hashSync(password, salt)
+    }
+
+    await user.save()
+
+    res.status(200).json({
+        success: true,
+        message: "Profile updated successfully",
+        data: {
+            user: {
+                id: user._id,
+                name: user.name,
+                email: user.email,
+                phone: user.phone,
+                address: user.address,
+                credits: user.credits,
+                isAdmin: user.isAdmin,
+            },
+        },
+    })
+}
+
+const authController = { loginUser, registerUser, updateUser }
 
 export default authController

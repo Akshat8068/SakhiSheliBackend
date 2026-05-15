@@ -5,14 +5,19 @@ import Order from "../models/orderModel"
 
 const placeOrder = async (req: Request, res: Response): Promise<void> => {
     const userId = req.user?._id
-    const { shippingAddress } = req.body
+
+    const { shippingAddress, selectedProducts, coupon } = req.body
 
     if (!shippingAddress) {
-        res.status(409)
+        res.status(400)
         throw new Error("Please Enter Shipping Address")
     }
 
-    const couponCode = await Coupon.findOne({ couponCode: req.body?.coupon })
+    if (!selectedProducts || selectedProducts.length === 0) {
+        res.status(400)
+        throw new Error("Please select products")
+    }
+
     const cart = await Cart.findOne({ user: userId }).populate("products.product")
 
     if (!cart) {
@@ -20,14 +25,44 @@ const placeOrder = async (req: Request, res: Response): Promise<void> => {
         throw new Error("Cart not found")
     }
 
-    let totalBill = cart.products.reduce((acc, item) => {
+    // selected cart items
+    const cartProducts = cart.products.filter((item) =>
+        selectedProducts.some(
+            (p: any) =>
+                p.productId === item.product.toString() &&
+                p.colorName === item.colorName &&
+                p.size === item.size
+        )
+    )
+
+    if (cartProducts.length === 0) {
+        res.status(400)
+        throw new Error("Selected products not found in cart")
+    }
+
+    // coupon
+    const couponCode = coupon
+        ? await Coupon.findOne({ couponCode: coupon })
+        : null
+
+    // total bill
+    let totalBill = cartProducts.reduce((acc, item) => {
         const product = item.product as any
         return acc + product.salePrice * item.qty
     }, 0)
 
-    totalBill = couponCode ? totalBill - (totalBill * couponCode.couponDiscount) / 100 : totalBill
+    // store original amount before discount
+    const originalAmount = totalBill
 
-    const orderProducts = cart.products.map((item) => ({
+    // apply discount
+    const discountAmount = couponCode
+        ? (totalBill * couponCode.couponDiscount) / 100
+        : 0
+
+    totalBill = couponCode ? totalBill - discountAmount : totalBill
+
+    // order products
+    const orderProducts = cartProducts.map((item) => ({
         product: (item.product as any)._id,
         colorName: item.colorName,
         colorMainImage: item.colorMainImage,
@@ -35,7 +70,8 @@ const placeOrder = async (req: Request, res: Response): Promise<void> => {
         qty: item.qty,
     }))
 
-    const order = new Order({
+    // create order
+    const order = await Order.create({
         user: userId,
         products: orderProducts,
         TotalBillAmount: totalBill,
@@ -44,16 +80,40 @@ const placeOrder = async (req: Request, res: Response): Promise<void> => {
         shippingAddress,
     })
 
-    await order.save()
+    // update coupon after order is placed
+    if (couponCode) {
+        couponCode.usedBy = userId
+        couponCode.usedAt = new Date()
 
-    if (!order) {
-        res.status(409)
-        throw new Error("Order Not placed")
+        couponCode.order = order._id
+
+        couponCode.originalAmount = originalAmount
+        couponCode.discountAmount = discountAmount
+        couponCode.finalAmount = totalBill
+
+        couponCode.isActive = false
+
+        await couponCode.save()
     }
 
-    await cart.deleteOne()
+    // remove ordered products from cart
+    cart.products = cart.products.filter(
+        (item) =>
+            !selectedProducts.some(
+                (p: any) =>
+                    p.productId === item.product.toString() &&
+                    p.colorName === item.colorName &&
+                    p.size === item.size
+            )
+    )
 
-    res.status(201).json(order)
+    await cart.save()
+
+    res.status(201).json({
+        success: true,
+        message: "Order placed successfully",
+        order,
+    })
 }
 
 const cancelOrder = async (req: Request, res: Response): Promise<void> => {
